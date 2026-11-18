@@ -139,7 +139,7 @@ fn trace_inner(
     if width * height > 2_000_000 {
         return Err("gambar terlalu besar (maks ~2 MP)".into());
     }
-    let colors = colors.clamp(2, 16);
+    let colors = colors.clamp(2, 64);
     let pixels: Vec<[u8; 3]> = rgba
         .chunks_exact(4)
         .map(|p| {
@@ -166,8 +166,10 @@ fn trace_inner(
         quant.pixels[i * 4 + 3] = 255;
     }
 
-    // detail 0..100 -> length_threshold 8.0..1.0, corner 120..30.
-    let t = detail.clamp(0.0, 100.0) / 100.0;
+    // detail 0..400 -> length_threshold 8.0..1.0, corner 120..30.
+    // (v1.0: 0..100; v1.1: rentang 4x, ujungnya sama — detail 400 baru
+    // = detail 100 lama, langkahnya lebih halus.)
+    let t = detail.clamp(0.0, 400.0) / 400.0;
     let config = Config {
         color_mode: ColorMode::Color,
         hierarchical: Hierarchical::Stacked,
@@ -181,7 +183,16 @@ fn trace_inner(
         splice_threshold: 45,
         path_precision: Some(2),
     };
-    let svg = vtracer::convert(quant, config).map_err(|e| e.to_string())?;
+    let mut svg = vtracer::convert(quant, config).map_err(|e| e.to_string())?;
+    // Snap warna fill tiap path ke warna palet terdekat. vtracer memakai
+    // residue_color() = rata-rata campuran piksel di cluster, sehingga
+    // tanpa snap, output bisa punya warna jauh lebih banyak dari slider
+    // (v1.0: slider 16 -> statistik "178 warna"). Setelah snap, "jumlah
+    // warna" benar-benar dihormati: warna unik output <= slider.
+    for p in svg.paths.iter_mut() {
+        let q = nearest([p.color.r, p.color.g, p.color.b], &palette);
+        p.color = visioncortex::Color::new(q[0], q[1], q[2]);
+    }
     let text = svg.to_string();
     let mut fills: Vec<String> = svg
         .paths
@@ -287,5 +298,97 @@ mod tests {
     fn trace_rejects_bad_input() {
         assert!(trace_inner(&[], 0, 0, 8, 50.0).is_err());
         assert!(trace_inner(&[0u8; 12], 1, 1, 8, 50.0).is_err());
+    }
+
+    /// Gambar "foto ramai" deterministik: gradien + noise + bentuk-bentuk
+    /// berwarna (mirip screenshot aplikasi), supaya median-cut punya
+    /// ratusan ribu warna berbeda seperti foto asli.
+    fn busy_photo(w: usize, h: usize) -> Vec<u8> {
+        let mut rgba = vec![0u8; w * h * 4];
+        let mut s: u32 = 0x1234_5678;
+        let mut rnd = move || {
+            s ^= s << 13;
+            s ^= s >> 17;
+            s ^= s << 5;
+            (s >> 16) as u8
+        };
+        for y in 0..h {
+            for x in 0..w {
+                let i = (y * w + x) * 4;
+                // Latar gradien biru gelap.
+                let mut r = (x * 40 / w) as u8;
+                let mut g = (y * 60 / h) as u8;
+                let mut b = 90u8 + ((x + y) * 40 / (w + h)) as u8;
+                // Lingkaran putih di tengah.
+                let (cx, cy) = (w as i32 / 2, h as i32 / 3);
+                let dx = x as i32 - cx;
+                let dy = y as i32 - cy;
+                if dx * dx + dy * dy < (w as i32 / 6) * (w as i32 / 6) {
+                    r = 245;
+                    g = 245;
+                    b = 245;
+                }
+                // Tombol-tombol warna di bawah.
+                if y > h * 2 / 3 && y < h * 2 / 3 + h / 12 {
+                    let band = x * 4 / w;
+                    let (br, bg, bb) = match band {
+                        0 => (20u8, 140u8, 120u8),
+                        1 => (40u8, 160u8, 60u8),
+                        2 => (200u8, 170u8, 30u8),
+                        _ => (120u8, 60u8, 160u8),
+                    };
+                    r = br;
+                    g = bg;
+                    b = bb;
+                }
+                // Noise kecil supaya tiap piksel nyaris unik.
+                let n = rnd() % 7;
+                rgba[i] = r.saturating_add(n);
+                rgba[i + 1] = g.saturating_add(n);
+                rgba[i + 2] = b.saturating_add(n);
+                rgba[i + 3] = 255;
+            }
+        }
+        rgba
+    }
+
+    /// Regresi: warna unik di output TIDAK BOLEH melebihi slider.
+    /// (Insiden v1.0: slider 16 tapi statistik "178 warna" — vtracer
+    /// memakai residue_color() = rata-rata campuran piksel cluster,
+    /// sehingga fill path bisa jadi warna baru di luar palet.)
+    #[test]
+    fn trace_output_colors_never_exceed_requested() {
+        let (w, h) = (128usize, 128usize);
+        let rgba = busy_photo(w, h);
+        let json = trace_inner(&rgba, w, h, 8, 50.0).expect("trace");
+        let v: serde_json::Value = serde_json::from_str(&json).expect("json");
+        let colors = v["colors"].as_u64().unwrap();
+        assert!(
+            colors <= 8,
+            "output punya {colors} warna padahal slider 8"
+        );
+    }
+
+    /// Probe performa (di-ignore di CI): foto ramai 1024px pada setting
+    /// tertinggi. Jalankan manual: cargo test -- --ignored --nocapture.
+    #[test]
+    #[ignore]
+    fn trace_perf_busy_photo_64_400() {
+        let (w, h) = (1024usize, 1024usize);
+        let rgba = busy_photo(w, h);
+        for (c, d) in [(16, 100.0), (64, 400.0)] {
+            let t0 = std::time::Instant::now();
+            let json = trace_inner(&rgba, w, h, c, d).expect("trace");
+            let dt = t0.elapsed();
+            let v: serde_json::Value = serde_json::from_str(&json).expect("json");
+            println!(
+                "PERF colors={c} detail={d}: {:.2?} | {} warna · {} anchor · {} path · {} byte",
+                dt,
+                v["colors"].as_u64().unwrap(),
+                v["anchors"].as_u64().unwrap(),
+                v["paths"].as_u64().unwrap(),
+                v["svg"].as_str().unwrap().len(),
+            );
+        }
     }
 }

@@ -12,8 +12,8 @@ android {
         applicationId "com.hozinking.vector"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
 
     // Keystore PERSISTEN (bukan ephemeral CI) — tanda tangan APK stabil

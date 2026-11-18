@@ -5,7 +5,7 @@
     <string name="pick_photo">Pilih Foto dari Galeri</string>
     <string name="colors_label_default">Jumlah warna: 8</string>
     <string name="colors_label">Jumlah warna: %1$d</string>
-    <string name="detail_label_default">Detail: 50</string>
+    <string name="detail_label_default">Detail: 200</string>
     <string name="detail_label">Detail: %1$d</string>
     <string name="process">Proses</string>
     <string name="status_pick">Pilih foto dulu, lalu tekan Proses.</string>
@@ -20,7 +20,7 @@
     <string name="share">Bagikan</string>
     <string name="share_title">Bagikan SVG</string>
     <string name="copied">SVG disalin ke clipboard.</string>
-    <string name="saved">Disimpan di Downloads: %1$s</string>
+    <string name="saved">Disimpan di Pictures/Svg Tools: %1$s</string>
     <string name="save_failed">Gagal menyimpan SVG.</string>
     <string name="offline_note">Offline penuh — foto tidak dikirim ke mana pun. File SVG bisa diimpor ke Alight Motion; tiap warna jadi satu layer, jadi tiap bagian bisa digerakkan sendiri.</string>
 </resources>

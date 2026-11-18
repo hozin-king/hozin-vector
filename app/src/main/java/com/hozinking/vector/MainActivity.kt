@@ -148,7 +148,7 @@ class MainActivity : AppCompatActivity() {
     private fun saveSvg() {
         val svg = svgText ?: return
         worker.execute {
-            val ok = saveToDownloads(svg, svgName)
+            val ok = saveToPictures(svg, svgName)
             runOnUiThread {
                 Toast.makeText(
                     this,
@@ -184,25 +184,33 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Simpan ke folder Downloads publik (MediaStore, API 29+). Di bawah itu
-     * simpan ke folder Downloads milik aplikasi (tanpa izin tambahan). */
-    private fun saveToDownloads(svg: String, name: String): Boolean {
+    /** Simpan ke folder Pictures/Svg Tools (MediaStore, API 29+).
+     * Di bawah itu simpan ke folder Svg Tools di Pictures milik aplikasi
+     * (tanpa izin tambahan). Nama file sudah unik per waktu, jadi tidak
+     * pernah menimpa file lama. */
+    private fun saveToPictures(svg: String, name: String): Boolean {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, name)
-                    put(MediaStore.Downloads.MIME_TYPE, "image/svg+xml")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/svg+xml")
+                    put(
+                        MediaStore.Images.Media.RELATIVE_PATH,
+                        "${Environment.DIRECTORY_PICTURES}/Svg Tools",
+                    )
                 }
                 val uri = contentResolver.insert(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
                 ) ?: return false
                 contentResolver.openOutputStream(uri)?.use {
                     it.write(svg.toByteArray(Charsets.UTF_8))
                 } ?: return false
                 true
             } else {
-                val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return false
+                val dir = File(
+                    getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                    "Svg Tools",
+                ).apply { mkdirs() }
                 File(dir, name).writeText(svg)
                 true
             }

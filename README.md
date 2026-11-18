@@ -6,9 +6,9 @@ Native Kotlin, offline penuh, tanpa iklan, tanpa login.
 ## Cara pakai
 
 1. Pilih foto dari galeri (mis. logo).
-2. Atur **jumlah warna** (2–16) dan **detail**.
+2. Atur **jumlah warna** (2–64) dan **detail** (0–400).
 3. Tekan **Proses** — foto di-trace jadi SVG, satu path per warna.
-4. **Salin** teks SVG, **Simpan** ke Downloads, atau **Bagikan**
+4. **Salin** teks SVG, **Simpan** ke Pictures/Svg Tools, atau **Bagikan**
    ke Alight Motion / aplikasi lain.
 
 Di Alight Motion, tiap path jadi satu layer — tiap bagian logo
@@ -20,6 +20,10 @@ bisa digerakkan sendiri (mis. animasi logo digambar garis demi garis).
   kuantisasi warna median-cut ke N warna persis, lalu
   [vtracer 0.6](https://github.com/visioncortex/vtracer)
   (spline) jadi SVG. Satu `<path>` per layer warna.
+  Warna fill tiap path di-snap ke warna palet terdekat —
+  vtracer sendiri memakai warna rata-rata residue cluster yang
+  bisa menambah warna baru di luar slider (v1.0: slider 16 tapi
+  statistik "178 warna").
 - JNI: `VectorEngine.trace()` mengembalikan JSON
   `{"svg","paths","colors","anchors"}`; null bila gagal.
 - Preview SVG di-render ke bitmap pakai
