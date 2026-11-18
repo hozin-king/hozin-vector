@@ -1,0 +1,13 @@
+# Build & local
+.gradle/
+local.properties
+build/
+app/build/
+*.iml
+.idea/
+# Rust
+app/src/main/rust/vectrace/target/
+# Keystore PERSISTEN — JANGAN PERNAH push (dipulihkan CI dari secret).
+debug.keystore
+# OS
+.DS_Store

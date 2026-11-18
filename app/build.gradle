@@ -1,0 +1,115 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.hozinking.vector'
+    compileSdk 34
+    ndkVersion "26.1.10909125"
+
+    defaultConfig {
+        applicationId "com.hozinking.vector"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // Keystore PERSISTEN (bukan ephemeral CI) — tanda tangan APK stabil
+    // antar rilis, jadi APK baru bisa install timpa. File debug.keystore
+    // dipulihkan workflow dari secret DEBUG_KEYSTORE_BASE64; file
+    // di-.gitignore, JANGAN PERNAH push. Config kondisional agar build
+    // lokal tetap jalan bila file tidak ada (validateSigningDebug gagal
+    // bila config menunjuk file yang tak ada).
+    signingConfigs {
+        if (file("../debug.keystore").exists()) {
+            debug {
+                storeFile file("../debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+            release {
+                storeFile file("../debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (file("../debug.keystore").exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
+
+    // Mesin trace di Rust (libvectrace.so) — vtracer + kuantisasi
+    // median-cut. Task buildRustVectrace di bawah memanggil
+    // build-android.sh.
+    sourceSets {
+        main {
+            jniLibs.srcDirs += "$buildDir/rust/jniLibs"
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+}
+
+// Bangun libvectrace.so Rust (4 ABI) sebelum kompilasi — NDK diambil
+// dari android.ndkDirectory Gradle, fallback ke $ANDROID_HOME/ndk/*.
+// NDK di-resolve di doFirst (execution time), bukan saat konfigurasi,
+// supaya ./gradlew tasks / konfigurasi tanpa SDK tetap jalan.
+tasks.register("buildRustVectrace", Exec) {
+    def cargoHome = System.getenv("CARGO_HOME") ?: System.getProperty("user.home") + "/.cargo"
+    environment("PATH", cargoHome + "/bin:" + System.getenv("PATH"))
+    workingDir file("src/main/rust/vectrace")
+    doFirst {
+        def ndkDir = null
+        try {
+            ndkDir = android.ndkDirectory.absolutePath
+        } catch (Exception ignored) {
+            // Fallback: cari NDK apa pun di $ANDROID_HOME/ndk/* (utamakan 26.x).
+            def ndkRoot = new File(System.getenv("ANDROID_HOME") ?: "", "ndk")
+            if (ndkRoot.isDirectory()) {
+                def candidates = ndkRoot.listFiles()?.findAll { it.isDirectory() } ?: []
+                ndkDir = (candidates.find { it.name.startsWith("26.") }
+                    ?: candidates.sort { a, b -> b.name <=> a.name }.find())?.absolutePath
+            }
+        }
+        if (ndkDir == null) {
+            throw new GradleException("NDK tidak ditemukan — pasang NDK 26.1 (sdkmanager \"ndk;26.1.10909125\") atau set ANDROID_HOME.")
+        }
+        commandLine "bash", "./build-android.sh", ndkDir, "${buildDir}/rust/jniLibs"
+    }
+}
+tasks.named("preBuild").configure {
+    dependsOn("buildRustVectrace")
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.activity:activity-ktx:1.9.2'
+
+    // Render preview SVG ke bitmap (tanpa WebView).
+    implementation 'com.caverock:androidsvg-aar:1.4'
+}

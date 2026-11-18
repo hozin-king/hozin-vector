@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hozin Vector</string>
+    <string name="subtitle">Ubah foto jadi vektor SVG — siap dianimasikan di Alight Motion.</string>
+    <string name="pick_photo">Pilih Foto dari Galeri</string>
+    <string name="colors_label_default">Jumlah warna: 8</string>
+    <string name="colors_label">Jumlah warna: %1$d</string>
+    <string name="detail_label_default">Detail: 50</string>
+    <string name="detail_label">Detail: %1$d</string>
+    <string name="process">Proses</string>
+    <string name="status_pick">Pilih foto dulu, lalu tekan Proses.</string>
+    <string name="status_ready">Foto siap. Atur warna &amp; detail, lalu tekan Proses.</string>
+    <string name="status_processing">Memproses…</string>
+    <string name="status_done">Selesai. Simpan atau bagikan SVG-nya.</string>
+    <string name="status_failed">Gagal: %1$s</string>
+    <string name="preview_label">Hasil (preview)</string>
+    <string name="stats_format">%1$d warna · %2$d titik anchor · %3$d path · %4$s</string>
+    <string name="copy">Salin</string>
+    <string name="save">Simpan</string>
+    <string name="share">Bagikan</string>
+    <string name="share_title">Bagikan SVG</string>
+    <string name="copied">SVG disalin ke clipboard.</string>
+    <string name="saved">Disimpan di Downloads: %1$s</string>
+    <string name="save_failed">Gagal menyimpan SVG.</string>
+    <string name="offline_note">Offline penuh — foto tidak dikirim ke mana pun. File SVG bisa diimpor ke Alight Motion; tiap warna jadi satu layer, jadi tiap bagian bisa digerakkan sendiri.</string>
+</resources>
